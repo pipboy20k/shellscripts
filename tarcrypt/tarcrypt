@@ -1,0 +1,137 @@
+#!/bin/bash
+# options:-i -o output;
+#exit codes:
+# 1: openssl missing
+# 2: bad options
+# functions
+encrypt()
+{
+	 openssl aes-128-cbc -salt -in "$OUTPUT".tar -out "$OUTPUT".aes
+	 rm "$OUTPUT".tar
+	 echo "Encrypting tar archive"
+	 echo "Temporary tar archive deleted"
+	 echo ""
+	 echo "The files you encrypted are stil present, consider deleting them"
+}
+
+decrypt()
+{
+	 openssl aes-128-cbc -d -salt -in $INPUT -out "$INPUT".tar
+	 echo "Decrypting tar archive"
+}
+
+tarc()
+{
+	tar -cjf "$OUTPUT".tar $FILES
+	echo "Compressing files with tar"
+}
+
+untar()
+{
+	 tar -xjf "$INPUT".tar
+	 rm "$INPUT".tar
+	 echo "Uncompressing files with tar"
+	 echo "Temporary tar archive deleted"
+}
+
+usage()
+{
+cat << EOF
+usage: $0 options
+
+This script creates an openssl encrypted tarball from a number of input files.
+
+OPTIONS:
+	-h			Show this message
+	-c			compress mode
+	-x			Extract mode
+
+COMPRESS MODE	
+	usage: $0 -c OUTPUTFILE FILE1 FILE2 ...
+
+EXTRACT MODE
+	usage: $0 -x FILE
+EOF
+}
+
+if !(which openssl) &>/dev/null
+then 
+		echo  "openssl not installed "
+		exit 1;
+fi
+
+INPUT=
+OUTPUT=
+EXTRACT=false
+COMPRESS=false
+PASS=
+
+while getopts “hc:x:” OPTION
+do
+	case $OPTION in
+		h)
+			usage
+			exit 0
+			;;
+		x)
+			INPUT=$OPTARG
+			EXTRACT=true
+			;;
+		c)
+			OUTPUT=$OPTARG
+			COMPRESS=true
+			;;
+		?)
+			usage
+			exit 2
+			;;
+	esac
+done
+
+shift $(( OPTIND - 1 ))
+
+# catching mode definition issues
+FILES=$@
+if [ $EXTRACT == true -a $COMPRESS == true ]
+then
+	echo "Extract and compress are mutually exclusive"
+	exit 2;
+fi
+if [ ${OUTPUT:-0} == -x ]
+then
+	echo "Extract and compress are mutually exclusive"
+	exit 2;
+fi
+if [ ${INPUT:-0} == -c ]
+then
+	echo "Extract and compress are mutually exclusive"
+	exit 2;
+fi
+if [ ${OUTPUT:-0} == -c ]
+then
+	echo "Extract and compress are mutually exclusive"
+	exit 2;
+fi
+if [ ${INPUT:-0} == -x ]
+then
+	echo "Extract and compress are mutually exclusive"
+	exit 2;
+fi
+if [ $EXTRACT == false -a $COMPRESS == false ]
+then
+	usage	
+	exit 2;
+fi
+
+# choose what to do depending on mode
+if [ $EXTRACT == true ]
+then
+	decrypt
+	untar
+fi
+
+if [ $COMPRESS = true ]
+then
+	tarc
+	encrypt
+fi

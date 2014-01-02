@@ -1,0 +1,91 @@
+#!/bin/bash
+#EXIT CODES
+#1 not yet configured
+#2 bad options
+
+
+#VARIABLES
+CONFIGURED=0
+#DEVNAME is the the name of the device as specified in /etc/fstab
+#LEAVE OUT "/DEV/", it will be added in the script
+DEVNAME=my_awesome_usb_stick
+MOUNTPOINT=`cat /etc/fstab | grep $DEVNAME | cut -f2`
+
+#Example for fstab
+#/dev/cam_sd	/media/cam_sd	vfat	uid=USER,gid=plugdev,umask=0027,noauto,rw,user,relatime,	0	0
+#Example for udev rule
+# /etc/udev/rules.d/sd.rules
+##SD Cards 32GB Transcend Class 10
+#SUBSYSTEMS=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="0159", ATTRS{serial}=="20071114173400000", NAME="cam_sd", GROUP="plugdev", OWNER="USER"
+
+
+#FUNCTIONS
+firstusage()
+{
+cat << EOF
+You should have a look at the variable DEVNAME as well as in /etc/udev/rules.d/ and /etc/fstab.
+After customizing the script for your needs, set the CONFIGURED variable to 1 and use the script.
+EOF
+}
+
+usage()
+{
+cat << EOF
+usage: $0 options
+
+
+This script (for now) mounts and unmounts storagedevices according to udev rules and fstab entries 
+
+OPERANDS:
+    mount          mount storage device
+    umount         unmount storage device
+
+EOF
+}
+MOUNTED=false
+if mount | grep $DEVNAME > /dev/null 
+then
+	MOUNTED=true
+fi
+
+if [ $CONFIGURED == 0 ]
+then
+	firstusage
+	exit 1;
+fi
+
+if [ -z $MOUNTPOINT ]
+then
+	echo "no entry in fstab found"
+	echo
+	firstusage
+	exit 1
+fi
+
+#normal use starting here
+if [ $# -eq 0 ] &&  $MOUNTED 
+then
+	echo "$DEVNAME is mounted"
+	exit 0 
+elif [ $# -eq 0 ]
+then
+	echo "$DEVNAME is NOT mounted"
+	exit 0
+fi
+
+#mounting
+if [ $@ == mount ]
+then
+	echo "mounting $DEVNAME to $MOUNTPOINT"
+	mount /dev/$DEVNAME
+#unmounting
+elif [ $@ == umount ]
+then
+	echo "unmounting $MOUNTPOINT"
+	umount /dev/$DEVNAME
+#bad option: neither mount nor unmount
+else
+	echo "bad options"
+	exit 2
+fi
+
